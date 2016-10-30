@@ -1,0 +1,8 @@
+{
+  WHILE x
+  {
+    a = x + b;
+    WHILE b { q = q * 1.2; b = a + x;}
+  }
+}
+

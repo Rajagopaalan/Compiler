@@ -1,0 +1,10 @@
+unify(ta,tb):
+  ta = find(ta)
+  tb = find(tb)
+  if both ta,tb are terms of the form D p1..pn with identical D,n then
+    unify(ta[i],tb[i]) for each corresponding ith parameter
+  else
+  if at least one of ta,tb is a type variable then
+    union(ta,tb)
+  else
+    error 'types do not match

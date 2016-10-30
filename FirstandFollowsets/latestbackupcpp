@@ -1,0 +1,464 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include "lexer.h"
+#include <stdlib.h>
+
+#include<iostream>
+#include<vector>
+#include<map>
+#include<algorithm>
+#include<set>
+#define KEYWORDS  5
+#define RESERVED  26
+
+using namespace::std;
+
+
+char current_token[MAX_TOKEN_LENGTH];
+int token_length;
+token_type t_type;
+int line = 1;
+
+
+void copyFirstsets(char *source ,char *destination);
+static int active_token = 0;
+static char *reserved[] =
+    {   "",
+        "IF",
+        "WHILE",
+        "DO",
+        "THEN",
+        "PRINT",
+        "+",
+        "-",
+        "/",
+        "*",
+        "=",
+        ":",
+        ",",
+        ";",
+        "[",
+        "]",
+        "(",
+        ")",
+        "<>",
+        ">",
+        "<",
+        "<=",
+        ">=",
+        ".",
+        "NUM",
+        "ID",
+        "ERROR",
+        "END_OF_TOKEN",
+        "END_OF_PROD"
+    };
+
+
+static void skip_space()
+{
+    char c;
+
+    c = getchar();
+    line += (c == '\n');
+    while (!feof(stdin) && isspace(c))
+    {
+        c = getchar();
+        line += (c == '\n');
+    }
+    // return character to input buffer if eof is not reached
+    if (!feof(stdin))
+    {
+        ungetc(c,stdin);
+    }
+}
+
+static int is_keyword(char *s)
+{
+    int i;
+
+    for (i = 1; i <= KEYWORDS; i++)
+    {
+        if (strcmp(reserved[i],s) == 0)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+static token_type scan_number()
+{
+    char c;
+
+    c = getchar();
+    if (isdigit(c))
+    {
+        if (c == '0')
+        {
+            current_token[token_length] = c;
+            token_length++;
+        }
+        else
+        {
+            while (isdigit(c) && token_length < MAX_TOKEN_LENGTH)
+            {
+                current_token[token_length] = c;
+                token_length++;
+                c = getchar();
+            }
+            ungetc(c, stdin);
+        }
+        current_token[token_length] = '\0';
+        return NUM;
+    }
+    else
+    {
+        return ERROR;
+    }
+}
+
+static token_type scan_id_keyword()
+{
+    char c;
+    int k;
+    token_type the_type;
+
+    c = getchar();
+    if (isalpha(c))
+    {
+        while (isalnum(c) && token_length < MAX_TOKEN_LENGTH)
+        {
+            current_token[token_length] = c;
+            token_length++;
+            c = getchar();
+        }
+        current_token[token_length] = '\0';
+        ungetc(c, stdin);
+        k = is_keyword(current_token);
+        if (k == 0)
+        {
+            the_type = ID;
+        }
+        else
+        {
+            the_type = (token_type) k;
+        }
+        return the_type;
+    }
+    else
+    {
+        return ERROR;
+    }
+}
+
+token_type getToken()
+{
+    char c;
+
+    if (active_token)
+    {
+        active_token = 0;
+        return t_type;
+    }
+    skip_space();
+    token_length = 0;
+    current_token[0] = '\0';
+    c = getchar();
+    switch (c)
+    {
+        case '.': t_type = DOT;        return t_type;
+        case '+': t_type = PLUS;       return t_type;
+        case '-': t_type = MINUS;      return t_type;
+        case '/': t_type = DIV;        return t_type;
+        case '*': t_type = MULT;       return t_type;
+        case '=': t_type = EQUAL;      return t_type;
+        case ':': t_type = COLON;      return t_type;
+        case ',': t_type = COMMA;      return t_type;
+        case ';': t_type = SEMICOLON;  return t_type;
+        case '[': t_type = LBRAC;      return t_type;
+        case ']': t_type = RBRAC;      return t_type;
+        case '(': t_type = LPAREN;     return t_type;
+        case ')': t_type = RPAREN;     return t_type;
+        case '<':
+            c = getchar();
+            if (c == '=')
+            {
+                t_type = LTEQ;
+            }
+            else if (c == '>')
+            {
+                t_type = NOTEQUAL;
+            }
+            else
+            {
+                ungetc(c, stdin);
+                t_type = LESS;
+            }
+            return t_type;
+       case '>':
+            c = getchar();
+            if (c == '=')
+            {
+                t_type = GTEQ;
+            }
+            else
+            {
+                ungetc(c, stdin);
+                t_type = GREATER;
+            }
+            return t_type;
+       default:
+            if (isdigit(c))
+            {
+                ungetc(c, stdin);
+                t_type = scan_number();
+            }
+            else if (isalpha(c)) // token is either keyword or ID
+            {
+                ungetc(c, stdin);
+                t_type = scan_id_keyword();
+            }
+            else if (c == EOF)
+            {
+                t_type = END_OF_FILE;
+            }
+            else if(c=='#')
+             {
+               t_type = END_OF_TOKEN;
+}
+ else if(c=='##'){t_type=END_OF_PROD;}
+            else
+            {
+                t_type = ERROR;
+            }
+            return t_type;
+    }
+}
+
+void ungetToken()
+{
+    active_token = 1;
+}
+
+  vector<string> Nonterminals;
+
+map<string,vector<vector<string> > >productions;
+map<string,vector<string> >firstsets;
+map<string,vector<string> >firstsetsold;
+
+
+map<string,string> epsilon;
+void storeproductions(){
+while(!feof(stdin))
+{
+getToken();
+if(t_type==27)
+{
+break;
+}
+int isEpsilon=1;
+string Nontermleft=current_token;
+vector<string>rules;
+while(!feof(stdin)){
+getToken();
+
+if(t_type==27)
+{
+break;
+}
+if((strcmp(current_token,"")!=0)){
+rules.push_back(current_token);
+ isEpsilon=0;}
+
+       
+ 
+}
+productions[Nontermleft].push_back(rules);
+if(isEpsilon==1){
+//rules.push_back("#");
+ epsilon[Nontermleft]="#";
+}
+/*for (vector<string>::iterator it = rules.begin() ; it != rules.end(); ++it){
+    cout << ' ' << *it;
+
+}
+ cout << '\n';*/
+  }
+}
+void printepsi(){
+ /*for (map<string,string >::iterator prIter=epsilon.begin(); prIter!=epsilon.end(); ++prIter){
+                     cout <<prIter->first<<' '<< prIter->second;
+     
+        }*/
+for (map<string,vector<string> >::iterator prIter=firstsets.begin(); prIter!=firstsets.end(); ++prIter){
+ cout<< prIter->first;
+/*for (vector<string>::iterator it = prI`1ter.begin() ; it != prIter.end(); ++it){
+                     cout << ' ' << *it;
+     }*/
+        }
+    
+}
+
+/*
+
+void printrules(){
+     for (map<string,vector<vector<string> > >::iterator prIter=productions.begin(); prIter!=productions.end(); ++prIter){
+           cout<< prIter->first <<"->";
+        for (vector<vector<string> >::iterator ruleIter=prIter->second.begin(); ruleIter!=prIter->second.end(); ++ruleIter) {
+            //vector<string> oldFirst = *ruleIter;
+            for (vector<string>::iterator tokenIter=(*ruleIter).begin(); tokenIter!=(*ruleIter).end(); ++tokenIter) {
+
+                cout<<*tokenIter<<" ";
+            }
+            cout<<endl;
+        }
+    }
+}
+
+*/
+
+void printfirstsets(){
+     for (map<string,vector<string> >::iterator prIter=firstsets.begin(); prIter!=firstsets.end(); ++prIter){
+           cout<< prIter->first <<"->";
+   
+            //vector<string> oldFirst = *ruleIter;
+            for (vector<string>::iterator tokenIter=prIter->second.begin(); tokenIter!=prIter->second.end(); ++tokenIter) {
+
+              cout<<*tokenIter<<" ";
+            }
+            cout<<endl;
+        }
+    
+}
+
+
+bool isEpsilon(string str){
+//bool result=find(epsilon.begin(), epsilon.end(),*it)==epsilon.end();
+map<string,string>::const_iterator it = epsilon.find(str);
+
+
+bool result=it!=epsilon.end();
+//bool result=
+if(result==1){
+//cout<< str; contains epsilon
+}
+return result;
+
+
+}
+bool isNonterminal(string str){
+
+bool res =find(Nonterminals.begin(), Nonterminals.end(), str)!=Nonterminals.end();
+if(res==1){//cout<< str; Nonterminal
+//cout<< str; 
+}
+return  res;
+}
+template<typename T>
+void removeDuplicates(std::vector<T>& vec){
+set<std::string>const uniques(vec.begin(),vec.end());
+vec.assign(uniques.begin(),uniques.end());
+}
+void calculateFirst(){
+int start=1;
+int x=0;
+
+while(start){
+
+      for (map<string,vector<vector<string> > >::iterator prIter=productions.begin(); prIter!=productions.end(); ++prIter){         //  cout<< prIter->first <<"->";
+        for (vector<vector<string> >::iterator ruleIter=prIter->second.begin(); ruleIter!=prIter->second.end(); ++ruleIter) {    
+            for (vector<string>::iterator tokenIter=(*ruleIter).begin(); tokenIter!=(*ruleIter).end(); ++tokenIter) {
+                //cout<<*tokenIter<<" ";
+              //  isEpsilon(*tokenIter);
+              //      isNonterminal(*tokenIter);
+                if(!isNonterminal(*tokenIter)){
+                           firstsets[prIter->first].push_back(*tokenIter);
+ removeDuplicates(firstsets[prIter->first]);
+if(firstsetsold==firstsets){//start=0;
+}
+               firstsetsold=firstsets;
+x++;
+if(x==1000){start=0;}
+                             break;
+                        }
+                       else{
+                            string Nonterm=*tokenIter;
+
+                       //    firstsets[prIter->first].push_back(firstsets[tokenIter]);
+                           firstsets[prIter->first].insert(firstsets[prIter->first].end(),firstsets[Nonterm].begin(),firstsets[Nonterm].end());
+                removeDuplicates(firstsets[prIter->first]);
+if(firstsetsold==firstsets){//start=0;
+}
+  firstsetsold=firstsets;
+//x++;
+if(x==1000){start=0;}
+                               break;
+                               }                    
+
+            }
+         
+        }
+    }
+}}
+
+main(){
+
+
+while(!feof(stdin))
+{
+getToken();
+
+
+if(t_type==27)
+{
+break;
+}
+if(strcmp(current_token,"#")!=0){
+Nonterminals.push_back(current_token);
+firstsets[current_token].push_back("");}
+
+}
+storeproductions();
+//printepsi();
+//printrules();
+calculateFirst();
+printfirstsets();
+/*
+  for (vector<string>::iterator it = Nonterminals.begin() ; it != Nonterminals.end(); ++it){
+    cout << ' ' << *it;
+  cout << '\n';
+
+  }
+
+*/
+
+}
+/*
+ * Write your code in a SEPARATE FILE, do NOT edit this file.
+ *
+ *
+ * If using C, include lexer.h in your code and compile and
+ * link your code like this:
+ *
+ * $ gcc -Wall lexer.c your_file.c
+ *
+ *
+ *
+ * If using C++, include lexer.h like this in your code:
+ *
+ * extern "C" {
+ *     #include "lexer.h"
+ * }
+ *
+ * And compile and link your code like this:
+ *
+ * $ gcc -Wall -c lexer.c
+ * $ g++ -Wall lexer.o your_file.cpp
+ *
+ * The first command just compiles the C code. The second
+ * command compiles your C++ code and links it with the
+ * compiled lexer.
+ *
+ */

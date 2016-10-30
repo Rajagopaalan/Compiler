@@ -1,0 +1,16 @@
+S A B C D E F #
+S -> a A B #
+S -> C D #
+A -> C D #
+A -> S E #
+A -> #
+B -> a S B #
+B -> A S #
+C -> c C #
+C -> #
+D -> C D d #
+D -> #
+E -> e F g #
+F -> F g #
+F -> # ##
+

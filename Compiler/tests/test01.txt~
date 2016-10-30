@@ -1,0 +1,27 @@
+a b c d e f #
+
+a -> L b R #
+
+a -> d e #
+
+b -> b I c S #
+
+b -> b N c S #
+
+b -> b A c S #
+
+b -> b G c S #
+
+c -> D #
+
+c -> c C D #
+
+d -> V V U #
+
+d -> W d #
+
+e -> f e #
+
+e -> f #
+
+f -> L ##

@@ -1,0 +1,650 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include "lexer.h"
+#include <stdlib.h>
+#define KEYWORDS  5
+#define RESERVED  26
+
+char current_token[MAX_TOKEN_LENGTH];
+int token_length;
+token_type t_type;
+int line = 1;
+
+
+void copyFirstsets(char *source ,char *destination);
+static int active_token = 0;
+static char *reserved[] =
+    {   "",
+        "IF",
+        "WHILE",
+        "DO",
+        "THEN",
+        "PRINT",
+        "+",
+        "-",
+        "/",
+        "*",
+        "=",
+        ":",
+        ",",
+        ";",
+        "[",
+        "]",
+        "(",
+        ")",
+        "<>",
+        ">",
+        "<",
+        "<=",
+        ">=",
+        ".",
+        "NUM",
+        "ID",
+        "ERROR",
+        "END_OF_TOKEN",
+        "END_OF_PROD"
+    };
+
+
+static void skip_space()
+{
+    char c;
+
+    c = getchar();
+    line += (c == '\n');
+    while (!feof(stdin) && isspace(c))
+    {
+        c = getchar();
+        line += (c == '\n');
+    }
+    // return character to input buffer if eof is not reached
+    if (!feof(stdin))
+    {
+        ungetc(c,stdin);
+    }
+}
+
+static int is_keyword(char *s)
+{
+    int i;
+
+    for (i = 1; i <= KEYWORDS; i++)
+    {
+        if (strcmp(reserved[i],s) == 0)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+static token_type scan_number()
+{
+    char c;
+
+    c = getchar();
+    if (isdigit(c))
+    {
+        if (c == '0')
+        {
+            current_token[token_length] = c;
+            token_length++;
+        }
+        else
+        {
+            while (isdigit(c) && token_length < MAX_TOKEN_LENGTH)
+            {
+                current_token[token_length] = c;
+                token_length++;
+                c = getchar();
+            }
+            ungetc(c, stdin);
+        }
+        current_token[token_length] = '\0';
+        return NUM;
+    }
+    else
+    {
+        return ERROR;
+    }
+}
+
+static token_type scan_id_keyword()
+{
+    char c;
+    int k;
+    token_type the_type;
+
+    c = getchar();
+    if (isalpha(c))
+    {
+        while (isalnum(c) && token_length < MAX_TOKEN_LENGTH)
+        {
+            current_token[token_length] = c;
+            token_length++;
+            c = getchar();
+        }
+        current_token[token_length] = '\0';
+        ungetc(c, stdin);
+        k = is_keyword(current_token);
+        if (k == 0)
+        {
+            the_type = ID;
+        }
+        else
+        {
+            the_type = (token_type) k;
+        }
+        return the_type;
+    }
+    else
+    {
+        return ERROR;
+    }
+}
+
+token_type getToken()
+{
+    char c;
+
+    if (active_token)
+    {
+        active_token = 0;
+        return t_type;
+    }
+    skip_space();
+    token_length = 0;
+    current_token[0] = '\0';
+    c = getchar();
+    switch (c)
+    {
+        case '.': t_type = DOT;        return t_type;
+        case '+': t_type = PLUS;       return t_type;
+        case '-': t_type = MINUS;      return t_type;
+        case '/': t_type = DIV;        return t_type;
+        case '*': t_type = MULT;       return t_type;
+        case '=': t_type = EQUAL;      return t_type;
+        case ':': t_type = COLON;      return t_type;
+        case ',': t_type = COMMA;      return t_type;
+        case ';': t_type = SEMICOLON;  return t_type;
+        case '[': t_type = LBRAC;      return t_type;
+        case ']': t_type = RBRAC;      return t_type;
+        case '(': t_type = LPAREN;     return t_type;
+        case ')': t_type = RPAREN;     return t_type;
+        case '<':
+            c = getchar();
+            if (c == '=')
+            {
+                t_type = LTEQ;
+            }
+            else if (c == '>')
+            {
+                t_type = NOTEQUAL;
+            }
+            else
+            {
+                ungetc(c, stdin);
+                t_type = LESS;
+            }
+            return t_type;
+       case '>':
+            c = getchar();
+            if (c == '=')
+            {
+                t_type = GTEQ;
+            }
+            else
+            {
+                ungetc(c, stdin);
+                t_type = GREATER;
+            }
+            return t_type;
+       default:
+            if (isdigit(c))
+            {
+                ungetc(c, stdin);
+                t_type = scan_number();
+            }
+            else if (isalpha(c)) // token is either keyword or ID
+            {
+                ungetc(c, stdin);
+                t_type = scan_id_keyword();
+            }
+            else if (c == EOF)
+            {
+                t_type = END_OF_FILE;
+            }
+            else if(c=='#')
+             {
+               t_type = END_OF_TOKEN;
+}
+ else if(c=='##'){t_type=END_OF_PROD;}
+            else
+            {
+                t_type = ERROR;
+            }
+            return t_type;
+    }
+}
+
+void ungetToken()
+{
+    active_token = 1;
+}
+
+
+
+
+int size=100;
+char*** Nonterminal;
+char*** productions;
+char*** Firstsets;
+char*** FirstsetsNT;
+
+
+int i=0;
+
+int qnt;
+int u,v,t;
+int uv[100];
+int fs[100];
+int fsn[100];
+
+ int isepsilon[100];
+int tempep;
+
+
+int t,tp,tempe,tempv;
+int ftp,ftnp,s;
+int current[100];
+int currentNT[100];
+
+int y,v,wq=0,fntps;
+int fstl,fst,fstlinear;
+int fst1;
+
+void calcFirstsets();
+int islocate(char *Nonter)
+{
+int a;
+for(a=0;a<i;a++)
+{
+if(strcmp(Nonter,Nonterminal[0][a])==0){
+return 1;
+}
+}
+return 0;
+}
+
+int isEpsilon(char *Nonter){
+int a,ah;
+for(a=0;a<i;a++){
+if(strcmp(Nonter,Firstsets[a][0])==0){
+for(ah=1;ah<=uv[a];ah++){
+if(strcmp(Firstsets[a][ah],"#")==0){
+return 1;
+}
+else{return 0;}
+}
+}
+}
+return 0;
+}
+
+
+void buildstructures(){
+
+
+
+while(!feof(stdin))
+{
+getToken();
+Nonterminal[0][i]=(char**)malloc(size*sizeof(char*));
+strcpy(Nonterminal[0][i],current_token);
+
+if(t_type==27)
+{
+break;
+}
+if(t_type==28){break;}
+i++;
+     
+}
+while(!feof(stdin))
+{
+
+getToken();
+v=0;
+productions[u] = (char**)malloc(size*sizeof(char*));
+productions[u][v] = (char**)malloc(size*sizeof(char*));
+strcpy(productions[u][v],current_token);
+
+
+
+while(!feof(stdin))
+{
+getToken();
+if(t_type==27){
+if(isepsilon[u]==0){
+v=v+1;
+//uv[u]=v;
+productions[u][v] = (char**)malloc(size*sizeof(char*));
+strcpy(productions[u][v],"#");
+
+int vx=v+1;
+productions[u][vx] = (char**)malloc(size*sizeof(char*));
+strcpy(productions[u][vx],"");
+
+}
+break;}
+ 
+if(strcmp(current_token,"")!=0){
+v=v+1;
+//uv[u]=v;
+productions[u][v] = (char**)malloc(size*sizeof(char*));
+strcpy(productions[u][v],current_token);
+isepsilon[u]=isepsilon[u]+1;
+
+int vx=v+1;
+productions[u][vx] = (char**)malloc(size*sizeof(char*));
+strcpy(productions[u][vx],"");
+}
+}
+uv[u]=v;
+
+
+
+u++;
+}
+
+printf("\n");
+int q,r,p,w;
+int fsrows;
+int z,x;
+
+int FirstNTstates[1000];
+for(q=0;q<i;q++)
+{
+
+Firstsets[q]=(char**)malloc(size*sizeof(char*));
+Firstsets[q][0]=(char**)malloc(size*sizeof(char*));
+
+//FirstsetsNT[q]=(char**)malloc(size*sizeof(char*));
+//FirstsetsNT[q][0]=(char**)malloc(size*sizeof(char*));
+//FirstNTstates[q]=1;
+fs[q]=1;
+//fsn[q]=1;
+strcpy(Firstsets[q][0],Nonterminal[0][q]);
+//strcpy(FirstsetsNT[q][0],Nonterminal[0][q]);
+for(fsrows=1;fsrows<100;fsrows++){
+Firstsets[q][fsrows]=(char**)malloc(size*sizeof(char*));
+strcpy(Firstsets[q][fsrows],"");
+
+//FirstsetsNT[q][fsrows]=(char**)malloc(size*sizeof(char*));
+//strcpy(FirstsetsNT[q][fsrows],"");
+
+}
+
+
+}
+
+qnt=0;
+for(q=0;q<u;q++)
+{
+
+
+int isl=islocate(productions[q][1]);
+if(isl==1){
+
+FirstsetsNT[qnt]=(char**)malloc(size*sizeof(char*));
+FirstsetsNT[qnt][0]=(char**)malloc(size*sizeof(char*));
+FirstNTstates[qnt]=1;
+//fs[q]=1;
+fsn[qnt]=1;
+
+strcpy(FirstsetsNT[qnt][0],productions[q][0]);
+
+for(fsrows=1;fsrows<100;fsrows++){
+
+
+FirstsetsNT[qnt][fsrows]=(char**)malloc(size*sizeof(char*));
+strcpy(FirstsetsNT[qnt][fsrows],"");
+
+}
+qnt=qnt+1;
+}
+
+}
+
+
+}                   //For storing Firstsets 
+
+
+
+void iterate(){
+int y,v,wq=0,fntps;
+int fstl,fst,fstlinear;
+int fst1;
+/*----to rewritte*/
+
+/*
+for(y=0;y<i;y++){
+
+for(v=0;v<i;v++){
+
+if(strcmp(FirstsetsNT[y][1],Firstsets[v][0])==0)
+{
+for(fst=0;fst<i;fst++){
+if(strcmp(FirstsetsNT[y][0],Firstsets[y][fst])==0){
+for(fstlinear=1;fstlinear<=fs[v];fstlinear++){
+int state=1,fsttemp;
+for(fsttemp=1;fsttemp<=fs[y];fsttemp++){
+if(strcmp(Firstsets[y][fsttemp],Firstsets[v][fstlinear])==0){
+state=0;
+break;
+}}
+if(state==1){
+if(strcmp(Firstsets[v][fstlinear],"")!=0){
+strcpy(Firstsets[y][fs[y]],Firstsets[v][fstlinear]); 
+//if(isEpsilon(FirstsetsNT[y][1])==1){strcpy(FirstsetsNT[y][1],FirstsetsNT[y][)}
+strcpy(FirstsetsNT[y][1],"");
+fs[y]=fs[y]+1;}}
+}
+}
+}
+}
+}
+}*/
+for(y=0;y<=qnt;y++){
+copyFirstsets(FirstsetsNT[y][1],FirstsetsNT[y][0]);
+
+
+
+
+}
+}
+
+
+
+void copyFirstsets(char *source ,char *destination){
+int firstsetpossource=getposition(source);
+int firstsetposdest=getposition(destination);
+int fstlinea;
+for(fstlinea=1;fstlinea<=fs[firstsetpossource];fstlinea++){
+int islocatetemp=isfindpos(Firstsets[firstsetpossource][fstlinea],Firstsets[firstsetposdest][0]);
+if(islocatetemp==0){
+strcpy(Firstsets[firstsetposdest][fs[firstsetposdest]],Firstsets[firstsetpossource][fstlinea]);
+strcpy(FirstsetsNT[y][1],"");
+printf("%s ",Firstsets[firstsetposdest][fs[firstsetposdest]]);
+fs[firstsetposdest]=fs[firstsetposdest]+1;
+}
+}
+}
+
+
+int getposition(char *Nonterm){
+int pos;
+for(pos=0;pos<i;pos++){
+if(strcmp(Nonterm,Firstsets[pos][0])==0){
+return pos;
+break;
+}
+}
+return -1;
+}
+
+int isfindpos(char *term,char *Nonterm){
+int tempa;
+int fstline=getposition(Nonterm);
+for(tempa=1;tempa<=fs[fstline];tempa++){
+if(strcmp(Firstsets[fstline][tempa],term)==0){
+return 1;
+break;
+}
+else{return 0;
+break;
+}
+}
+return 0; 
+}
+
+
+void calcFirstsets(){
+
+
+for(t=0;t<u;t++){
+
+tempe=islocate(productions[t][current[t]]);
+if(tempe!=1){
+for(ftp=0;ftp<i;ftp++){
+                                        
+if(strcmp(productions[t][0],Firstsets[ftp][0])==0){
+
+int state=0,temps;
+for(temps=0;temps<=fs[ftp];temps++){
+if(strcmp(Firstsets[ftp][temps],productions[t][current[t]])==0){
+state=1;
+break;}
+else {state=0;}
+}
+if(state==0){
+strcpy(Firstsets[ftp][fs[ftp]],productions[t][current[t]]);
+current[t]=current[t]+1;
+
+fs[ftp]=fs[ftp]+1;}
+}
+}
+}
+else{
+int state_insert=1;
+for(ftnp=0;ftnp<=qnt;ftnp++){
+if(strcmp(productions[t][0],FirstsetsNT[ftnp][0])==0){
+for(s=0;s<=fsn[ftnp];s++){
+if(strcmp(productions[t][current[t]],FirstsetsNT[ftnp][s])==0){
+state_insert=0;
+break;
+}
+else{state_insert=1;}
+}
+if(state_insert==1){
+while(strcmp(productions[t][current[t]],"")!=0){
+strcpy(FirstsetsNT[ftnp][fsn[ftnp]],productions[t][current[t]]);
+
+printf("%s ft" ,FirstsetsNT[ftnp][fsn[ftnp]]);
+current[t]=current[t]+1;
+fsn[ftnp]=fsn[ftnp]+1;
+
+}
+}}
+
+}
+}
+}
+
+iterate();
+
+
+
+int tempnt;
+
+for(tempnt=0;tempnt<i;tempnt++){
+if(strcmp(FirstsetsNT[tempnt][1],"")!=0){
+//calcFirstsets();
+iterate();
+
+}}
+//iterate();
+
+//iterate();
+}
+
+
+
+
+void displayFirstsets(){
+int tempx,tempy;
+
+
+for(tempx=0;tempx<i;tempx++)
+{
+
+for(tempy=0;tempy<100;tempy++)
+{
+if(strcmp(Firstsets[tempx][tempy],"")!=0){
+printf(" %s \n",Firstsets[tempx][tempy]);}
+
+}}
+}
+
+
+main()
+{
+//printf("efef");
+
+for(t=0;t<100;t++){
+current[t]=1;
+currentNT[t]=1;
+
+}
+
+productions = (char***)malloc(2*size*sizeof(char**));
+Firstsets=(char***)malloc(2*size*sizeof(char**));
+FirstsetsNT=(char***)malloc(2*size*sizeof(char*));
+Nonterminal=(char***)malloc(2*size*sizeof(char**));
+Nonterminal[0]=(char**)malloc(size*sizeof(char*));
+for(tempep=0;tempep<100;tempep++){isepsilon[tempep]=0;}
+buildstructures();
+u=u-2;
+
+calcFirstsets();
+
+displayFirstsets();
+}
+/*
+ * Write your code in a SEPARATE FILE, do NOT edit this file.
+ *
+ *
+ * If using C, include lexer.h in your code and compile and
+ * link your code like this:
+ *
+ * $ gcc -Wall lexer.c your_file.c
+ *
+ *
+ *
+ * If using C++, include lexer.h like this in your code:
+ *
+ * extern "C" {
+ *     #include "lexer.h"
+ * }
+ *
+ * And compile and link your code like this:
+ *
+ * $ gcc -Wall -c lexer.c
+ * $ g++ -Wall lexer.o your_file.cpp
+ *
+ * The first command just compiles the C code. The second
+ * command compiles your C++ code and links it with the
+ * compiled lexer.
+ *
+ */
